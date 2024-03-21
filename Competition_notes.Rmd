@@ -1,0 +1,19 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# use june data for test data (predict june with models and compare with observed values, to allow you to choose which models gives the best accuracy and forecasting performance)
+#then fit the model again and forecast the july month for the final result! 
+#results in 31 forecasts for the 31 days in july, can prepare code to output a .csv to upload to kaggle for july. 
+#or submission template with load data pasted in the .csv on github 
+
+
+```{r}
+library(readxl)
+load <- read_excel("Data/load.xlsx")
+relative_humidity <- read_excel("Data/relative_humidity.xlsx")
+temperature <- read_excel("Data/temperature.xlsx")
+
+```
+
