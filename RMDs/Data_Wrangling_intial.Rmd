@@ -1,0 +1,123 @@
+---
+title: "Data Wrangling"
+author: "Emma Kaufman and Jaime Wargo"
+date: "2024-03-26"
+output: pdf_document
+---
+```{r package, message=FALSE, warning=FALSE}
+library(lubridate)
+library(ggplot2)
+library(forecast)  
+library(Kendall)
+library(tseries)
+library(outliers)
+library(tidyverse)
+library(smooth)
+library(zoo)
+library(kableExtra)
+library(readxl)
+library(here)
+```
+
+```{r}
+load <- read_excel("Data_TOPOST/load.xlsx")
+relative_humidity <- read_excel("Data_TOPOST/relative_humidity.xlsx")
+temperature <- read_excel("Data_TOPOST/temperature.xlsx")
+```
+
+## WRANGLE/PROCESS THE DATASET
+
+You will need to transform hourly data into daily data. See the Rmd file from Lesson 11 for instruction on how to aggregate your dataset using pipes. You should take the **average** of the 24 hours to obtain the daily averages.
+```{r}
+#start with wrangling load data
+load_all <- load %>% 
+  pivot_longer(cols = h1:h24) %>% 
+  rename(Hour = name,
+         Load= value) %>% 
+  mutate(Hour= as.numeric(gsub('h','', Hour))-1) %>% 
+  mutate(date= ymd(date)) %>% 
+  mutate(Day = day(date),
+         Month= month(date),
+         Year= year(date)) %>% 
+  select(meter_id, date, Year, Month, Day, Hour, Load)
+
+#check for NAs
+summary(load_all$Load)
+
+```
+
+```{r}
+#Creating a data frame with daily observations
+load_daily <- load_all %>% 
+  filter( !is.na(Load) ) %>% 
+  group_by(meter_id, date, Year, Month, Day) %>% # here we left column with hour out to calculate daily mean
+  summarise( Daily_mean_load = mean(Load)) #take the mean for the day
+
+ggplot(load_daily, aes(x=date,y=Daily_mean_load)) +
+  geom_line() +
+  ylab("Average Daily Load")
+
+#check for NAs
+summary(load_daily$Daily_mean_load)
+```
+```{r}
+#temperature and relative humidity data
+temperature_all <- temperature %>% 
+  mutate(date= ymd(date)) %>% 
+  mutate(Day= day(date),
+          Month= month(date),
+          Year= year(date)) %>% 
+  mutate(hr= hr-1) %>% 
+  rename(hour= hr) 
+
+relative_humidity_all <- relative_humidity %>% 
+   mutate(date= ymd(date)) %>% 
+  mutate(Day= day(date),
+          Month= month(date),
+          Year= year(date)) %>% 
+  mutate(hr= hr-1) %>% 
+  rename(hour= hr)
+
+#check for NA
+summary(temperature_all)
+summary(relative_humidity_all)
+
+#summarize daily data
+temp_daily <- temperature_all %>% 
+  group_by(date, Year, Month, Day) %>% # here we left column with hour out to calculate daily mean
+  #daily mean for each station
+  summarise_at(vars(matches("^t_ws[1-9]|^t_ws1[0-8]$")), list(Daily_temp = ~mean(., na.rm = TRUE)))
+ 
+
+rh_daily <- relative_humidity_all %>% 
+  group_by(date, Year, Month, Day) %>% # here we left column with hour out to calculate daily mean
+  #daily mean for each station
+  summarise_at(vars(matches("^rh_ws[1-9]|^rh_ws1[0-8]$")), list(Daily_temp = ~mean(., na.rm = TRUE)))
+
+```
+
+```{r}
+#save datasets
+
+write.csv(load_daily,file=here("Data","Processed","Daily_Load.csv"))
+write.csv(temp_daily,file=here("Data","Processed","Daily_Temp.csv"))
+write.csv(rh_daily,file=here("Data","Processed","Daily_Relative_Humidity.csv"))
+```
+
+## CREATE A TIME SERIES OBJECT
+
+After you process your dataset use the `msts()` function to create a time series object. You need to use `msts()` instead of `ts()` because your daily data will have more than one seasonal component. After you process your dataset use the `msts()` function to create a time series object.
+
+```{r}
+#load time series object
+ts_load_daily <- msts(load_daily$Daily_mean_load, #daily data frame mean
+                           seasonal.periods =c(7,365.25), #seasonal periods
+                           start=c(2005,1,1))
+```
+
+```{r}
+#decomposition of daily data
+ts_load_daily %>% mstl() %>%
+  autoplot()
+```
+
