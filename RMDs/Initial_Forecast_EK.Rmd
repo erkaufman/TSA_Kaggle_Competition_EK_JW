@@ -1,0 +1,30 @@
+```{r package, message=FALSE, warning=FALSE}
+library(lubridate)
+library(ggplot2)
+library(forecast)  
+library(Kendall)
+library(tseries)
+library(outliers)
+library(tidyverse)
+library(smooth)
+library(zoo)
+library(kableExtra)
+library(readxl)
+library(here)
+```
+
+```{r}
+#loading in data
+daily_load <- read_csv("Data/Processed/Daily_Load.csv")
+  
+
+#load time series object
+ts_load_daily <- msts(daily_load$Daily_mean_load, #daily data frame mean
+                           seasonal.periods =c(7,365.25), #seasonal periods
+                           start=c(2005,1,1))
+
+#decomposition of daily data
+ts_load_daily %>% mstl() %>%
+  autoplot()
+
+```
