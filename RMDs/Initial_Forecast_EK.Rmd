@@ -26,5 +26,21 @@ ts_load_daily <- msts(daily_load$Daily_mean_load, #daily data frame mean
 #decomposition of daily data
 ts_load_daily %>% mstl() %>%
   autoplot()
+```
 
+
+```{r}
+#training and test datasets
+
+#create a subset for training purpose
+n_for = 365
+ts_daily_train <- subset(ts_load_daily,
+                                   end = length(ts_load_daily)-n_for)
+
+#create a subset for testing purpose
+ts_act_power_daily_test <- subset(ts_act_power_daily,
+                                   start = length(ts_act_power_daily)-n_for)
+
+autoplot(ts_act_power_daily_train)
+autoplot(ts_act_power_daily_test)
 ```
