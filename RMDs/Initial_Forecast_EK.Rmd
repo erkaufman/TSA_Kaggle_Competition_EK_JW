@@ -33,7 +33,7 @@ ts_load_daily %>% mstl() %>%
 ```{r}
 #training and test datasets
 
-#create a subset for training purpose
+#create a subset for training purpose (try forecasting for one month!)
 n_for = 365
 ts_daily_train <- subset(ts_load_daily,
                                    end = length(ts_load_daily)-n_for)
@@ -41,6 +41,14 @@ ts_daily_train <- subset(ts_load_daily,
 #create a subset for testing purpose
 ts_daily_test <- subset(ts_load_daily,
                                    start = length(ts_load_daily)-n_for)
+
+#test is just a month
+ts_daily_train_month <- subset(ts_load_daily,
+                                   end = length(ts_load_daily)-30)
+
+#create a subset for testing purpose
+ts_daily_test_month <- subset(ts_load_daily,
+                                   start = length(ts_load_daily)-30)
 ```
 
 
@@ -65,9 +73,24 @@ autoplot(ts_load_daily) +
 #ts_act_power_daily_train %>% stlf(h=365) %>% autoplot() 
 #very easy to read/run/implement 
 #but you don't have anything stored on your environment
+
+#trying with just the month test set as opposed to year
+
+ETS_fit_2 <-  stlf(ts_daily_train_month,h=30)
+
+#Plot foresting results
+autoplot(ETS_fit_2) + ylab("Load")
+
+#Plot model + observed data
+autoplot(ts_load_daily) +
+  autolayer(ETS_fit_2, series="STL + ETS",PI=FALSE) +
+  ylab("Active Load")
 ```
 ```{r}
 ETS_scores <- accuracy(ETS_fit$mean,ts_daily_test)
+
+ETS_scores_2 <- accuracy(ETS_fit_2$mean,ts_daily_test_month)
+
 ```
 
 ##Arima and Fourier
@@ -84,15 +107,14 @@ ARIMA_Four_fit <- auto.arima(ts_daily_train,
 ARIMA_Four_for <- forecast(ARIMA_Four_fit,
                            xreg=fourier(ts_daily_train,
                                         K=c(2,4),
-                                        h=365),
-                           h=365
+                                        h=365), h=365
                            ) 
 
 #Plot foresting results
 autoplot(ARIMA_Four_for) + ylab("Load")
 
 #Plot model + observed data
-autoplot(ts_daily_train) +
+autoplot(ts_load_daily) +
   autolayer(ARIMA_Four_for, series="ARIMA_FOURIER",PI=FALSE) +
   ylab("Load")
 ```
@@ -100,5 +122,13 @@ autoplot(ts_daily_train) +
 ```{r}
 #Model 2: ARIMA + Fourier 
 ARIMA_scores <- accuracy(ARIMA_Four_for$mean,ts_daily_test)
+```
+
+```{r}
+# adding results from ETS_fit to submission template
+submission_ETS <- read_csv("output/submission_template.csv", 
+    col_types = cols(load = col_number()))
+
+submission_ETS$load <- ETS_fit$fitted[2312:2342]
 ```
 
