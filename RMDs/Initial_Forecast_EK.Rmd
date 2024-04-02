@@ -11,6 +11,7 @@ library(zoo)
 library(kableExtra)
 library(readxl)
 library(here)
+
 ```
 
 ```{r}
@@ -71,28 +72,33 @@ ETS_scores <- accuracy(ETS_fit$mean,ts_daily_test)
 
 ##Arima and Fourier
 ```{r}
-ARIMA_Four_fit <- auto.arima(ts_act_power_daily_train, 
+ARIMA_Four_fit <- auto.arima(ts_daily_train, 
                              seasonal=FALSE, 
                              lambda=0,
-                             xreg=fourier(ts_act_power_daily_train, 
-                                          K=c(2,12))
+                             xreg=fourier(ts_daily_train, 
+                                          K=c(2,4))
                              )
 
 #Forecast with ARIMA fit
 #also need to specify h for fourier terms
 ARIMA_Four_for <- forecast(ARIMA_Four_fit,
-                           xreg=fourier(ts_act_power_daily_train,
-                                        K=c(2,12),
+                           xreg=fourier(ts_daily_train,
+                                        K=c(2,4),
                                         h=365),
                            h=365
                            ) 
 
 #Plot foresting results
-autoplot(ARIMA_Four_for) + ylab("Active Power")
+autoplot(ARIMA_Four_for) + ylab("Load")
 
 #Plot model + observed data
-autoplot(ts_act_power_daily) +
+autoplot(ts_daily_train) +
   autolayer(ARIMA_Four_for, series="ARIMA_FOURIER",PI=FALSE) +
-  ylab("Active Power")
+  ylab("Load")
+```
+
+```{r}
+#Model 2: ARIMA + Fourier 
+ARIMA_scores <- accuracy(ARIMA_Four_for$mean,ts_daily_test)
 ```
 
