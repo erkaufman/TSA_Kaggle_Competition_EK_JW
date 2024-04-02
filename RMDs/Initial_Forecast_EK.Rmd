@@ -38,9 +38,61 @@ ts_daily_train <- subset(ts_load_daily,
                                    end = length(ts_load_daily)-n_for)
 
 #create a subset for testing purpose
-ts_act_power_daily_test <- subset(ts_act_power_daily,
-                                   start = length(ts_act_power_daily)-n_for)
-
-autoplot(ts_act_power_daily_train)
-autoplot(ts_act_power_daily_test)
+ts_daily_test <- subset(ts_load_daily,
+                                   start = length(ts_load_daily)-n_for)
 ```
+
+
+```{r}
+autoplot(ts_daily_train)
+autoplot(ts_daily_test)
+```
+
+```{r}
+#Fit and forecast STL + ETS model to data
+ETS_fit <-  stlf(ts_daily_train,h=365)
+
+#Plot foresting results
+autoplot(ETS_fit) + ylab("Load")
+
+#Plot model + observed data
+autoplot(ts_load_daily) +
+  autolayer(ETS_fit, series="STL + ETS",PI=FALSE) +
+  ylab("Active Load")
+
+#alternative coding if you don't need to save the objects
+#ts_act_power_daily_train %>% stlf(h=365) %>% autoplot() 
+#very easy to read/run/implement 
+#but you don't have anything stored on your environment
+```
+```{r}
+ETS_scores <- accuracy(ETS_fit$mean,ts_daily_test)
+```
+
+##Arima and Fourier
+```{r}
+ARIMA_Four_fit <- auto.arima(ts_act_power_daily_train, 
+                             seasonal=FALSE, 
+                             lambda=0,
+                             xreg=fourier(ts_act_power_daily_train, 
+                                          K=c(2,12))
+                             )
+
+#Forecast with ARIMA fit
+#also need to specify h for fourier terms
+ARIMA_Four_for <- forecast(ARIMA_Four_fit,
+                           xreg=fourier(ts_act_power_daily_train,
+                                        K=c(2,12),
+                                        h=365),
+                           h=365
+                           ) 
+
+#Plot foresting results
+autoplot(ARIMA_Four_for) + ylab("Active Power")
+
+#Plot model + observed data
+autoplot(ts_act_power_daily) +
+  autolayer(ARIMA_Four_for, series="ARIMA_FOURIER",PI=FALSE) +
+  ylab("Active Power")
+```
+
