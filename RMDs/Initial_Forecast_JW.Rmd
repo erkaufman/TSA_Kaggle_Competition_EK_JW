@@ -1,0 +1,179 @@
+---
+title: "Initial Forecast JW"
+author: "Jaimie Wargo"
+date: "2024-04-03"
+output: pdf_document
+---
+
+```{r Libraries, warning=FALSE, message=FALSE}
+library(lubridate)
+library(ggplot2)
+library(forecast)  
+library(Kendall)
+library(tseries)
+library(outliers)
+library(tidyverse)
+library(smooth)
+library(zoo)
+library(kableExtra)
+library(readxl)
+library(here)
+```
+
+```{r Data Import}
+
+raw_load <- read.csv(here('Data','Processed','Daily_load.csv'))
+
+raw_temp <- read.csv(here('Data','Processed','Daily_Temp.csv'))
+raw_temp <- raw_temp %>% 
+  drop_na()
+
+raw_humidity <- read.csv(here('Data','Processed','Daily_Relative_Humidity.csv'))
+
+```
+
+```{r}
+
+ts_load_daily <- msts(raw_load$Daily_mean_load, 
+                      start=c(2005,1,1),
+                      seasonal.periods =c(7,365.25))
+
+ts_meter1 <- msts(raw_temp$t_ws1_Daily_temp, 
+                  start=c(2005,1,1),
+                  seasonal.periods =c(7,365.25))
+```
+
+```{r}
+#training and test datasets
+
+#create a subset for training purpose (try forecasting for one month!)
+n_for <- 365
+
+ts_daily_train <- subset(ts_load_daily,
+                                   end = length(ts_load_daily)-n_for)
+
+#create a subset for testing purpose
+ts_daily_test <- subset(ts_load_daily,
+                                   start = length(ts_load_daily)-n_for)
+
+#test is just a month
+ts_daily_train_month <- subset(ts_load_daily,
+                                   end = length(ts_load_daily)-30)
+
+#create a subset for testing purpose
+ts_daily_test_month <- subset(ts_load_daily,
+                                   start = length(ts_load_daily)-30)
+
+#External regressors
+temp_meter1_monthly_train <- subset(ts_meter1,
+                                   end = length(ts_load_daily)-30)
+
+temp_meter1_monthly_test <- subset(ts_meter1,
+                                   start = length(ts_load_daily)-30)
+
+temp_meter1_for <- forecast(ts_meter1, h=31)
+```
+
+#Neural Networks
+##K(2,4)
+
+```{r}
+# Generate Fourier series components
+fourier_components <- fourier(ts_load_daily, K=c(2,4))
+fourier_for <- fourier(ts_load_daily, K=c(2,4), h=31)
+
+# Combine Fourier components with temperature data
+regressors <- cbind(as.matrix(data.frame(fourier_components)), 
+                    "temp" = ts_meter1)
+
+regressors_for <- cbind(as.matrix(data.frame(fourier_for)), 
+                    "temp" = temp_meter1_for$mean)
+
+#NN_fit <- nnetar(ts_act_power_daily_train,p=1,P=1)
+NN_fit <- nnetar(ts_load_daily,p=1,P=0,
+                 xreg=regressors)
+
+#NN_for <- forecast(NN_fit, h=365) 
+NN_for <- forecast(NN_fit, h=31, xreg=regressors_for)
+
+#Plot foresting results
+autoplot(NN_for) +
+  ylab("Load") 
+
+```
+
+```{r}
+# adding results from ETS_fit to submission template
+submission <- read_csv(here("output", "submission_template.csv"), 
+    col_types = cols(load = col_number()))
+
+submission$load <- NN_for$mean
+
+write.csv(submission, file=here("output","Submission2_EK_JW.csv"),
+          row.names = F)
+```
+
+##K(2,6)
+
+```{r}
+NN_testing <- function(x,X) {
+  # Generate Fourier series components
+  fourier_components <- fourier(ts_load_daily, K=c(x,X))
+  fourier_for <- fourier(ts_load_daily, K=c(x,X), h=31)
+
+  # Combine Fourier components with temperature data
+  regressors <- cbind(as.matrix(data.frame(fourier_components)), 
+                     "temp" = ts_meter1)
+
+  regressors_for <- cbind(as.matrix(data.frame(fourier_for)), 
+                     "temp" = temp_meter1_for$mean)
+
+  #NN_fit <- nnetar(ts_act_power_daily_train,p=1,P=1)
+  NN_fit <- nnetar(ts_load_daily,p=1,P=0,
+                   xreg=regressors)
+  
+  #NN_for <- forecast(NN_fit, h=365) 
+  NN_for <- forecast(NN_fit, h=31, xreg=regressors_for)
+  
+  return(NN_for)
+  
+}
+
+
+```
+
+```{r}
+
+NN_26 <- NN_testing(2,6)
+
+autoplot(NN_26) +
+  ylab("Load")
+
+```
+```{r}
+
+submission$load <- NN_26$mean
+
+write.csv(submission, file=here("output","Submission3_EK_JW.csv"),
+          row.names = F)
+
+```
+
+##K(2,12)
+
+```{r}
+
+NN_212 <- NN_testing(2,12)
+
+autoplot(NN_212) +
+  ylab("Load")
+
+```
+
+```{r}
+submission$load <- NN_212$mean
+
+write.csv(submission, file=here("output","Submission4_EK_JW.csv"),
+          row.names = F)
+```
+
