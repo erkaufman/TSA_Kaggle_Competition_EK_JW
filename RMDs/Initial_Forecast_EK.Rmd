@@ -17,7 +17,9 @@ library(here)
 ```{r}
 #loading in data
 daily_load <- read_csv("Data/Processed/Daily_Load.csv")
-  
+
+#how to add regressors to model
+#regressors <- as.matrix(data.frame(fourier(ts_daily_train, K= c(2,12)), "temp"=temp_train))
 
 #load time series object
 ts_load_daily <- msts(daily_load$Daily_mean_load, #daily data frame mean
@@ -130,5 +132,9 @@ submission_ETS <- read_csv("output/submission_template.csv",
     col_types = cols(load = col_number()))
 
 submission_ETS$load <- ETS_fit$fitted[2312:2342]
+
+
+#creating .csv output
+write.csv(submission_ETS,file=here("output","Submission1_EK_JW.csv"))
 ```
 
