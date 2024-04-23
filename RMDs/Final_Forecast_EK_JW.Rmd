@@ -152,7 +152,7 @@ autoplot(ts_daily_test)
 
 ### ETS
 ```{r}
-#Fit and forecast STL + ETS model to data
+#Fit and forecast STL + ETS model to data with a year of holdout data
 ETS_fit <-  stlf(ts_daily_train,h=365)
 
 #Plot foresting results
@@ -161,12 +161,8 @@ autoplot(ETS_fit) + ylab("Load")
 #Plot model + observed data
 autoplot(ts_load_daily) +
   autolayer(ETS_fit, series="STL + ETS",PI=FALSE) +
-  ylab("Active Load")
-
-#alternative coding if you don't need to save the objects
-#ts_act_power_daily_train %>% stlf(h=365) %>% autoplot() 
-#very easy to read/run/implement 
-#but you don't have anything stored on your environment
+  ylab("Active Load") +
+  ggtitle("ETS with year of holdout")
 
 #trying with just the month test set as opposed to year
 
@@ -178,13 +174,38 @@ autoplot(ETS_fit_2) + ylab("Load")
 #Plot model + observed data
 autoplot(ts_load_daily) +
   autolayer(ETS_fit_2, series="STL + ETS",PI=FALSE) +
-  ylab("Active Load")
+  ylab("Active Load") +
+  ggtitle("ETS with month of holdout")
 ```
+
 ```{r}
 ETS_scores <- accuracy(ETS_fit$mean,ts_daily_test)
+ETS_scores
 
 ETS_scores_2 <- accuracy(ETS_fit_2$mean,ts_daily_test_month)
+ETS_scores_2
+```
 
+```{r}
+# adding results from ETS_fit to submission template (year holdout)
+submission_ETS <- read_csv("output/submission_template.csv", 
+    col_types = cols(load = col_number()))
+
+submission_ETS$load <- ETS_fit$fitted[1977:2007]
+
+#creating .csv output
+write.csv(submission_ETS,file=here("output","Submission1_EK_JW.csv"),
+          row.names = F)
+
+# adding results from ETS_fit2 to submission template (month holdout)
+submission_ETS2 <- read_csv("output/submission_template.csv", 
+    col_types = cols(load = col_number()))
+
+submission_ETS2$load <- ETS_fit_2$fitted[2312:2342]
+
+#creating .csv output
+write.csv(submission_ETS2,file=here("output","Submission5_EK_JW.csv"),
+          row.names = F)
 ```
 
 ### Arima and Fourier
@@ -205,29 +226,49 @@ ARIMA_Four_for <- forecast(ARIMA_Four_fit,
                            ) 
 
 #Plot foresting results
-autoplot(ARIMA_Four_for) + ylab("Load")
+autoplot(ARIMA_Four_for) + ylab("Load") + ggtitle("ARIMA w Fourier (2,4)")
 
 #Plot model + observed data
 autoplot(ts_load_daily) +
   autolayer(ARIMA_Four_for, series="ARIMA_FOURIER",PI=FALSE) +
   ylab("Load")
+
+
 ```
 
 ```{r}
 #Model 2: ARIMA + Fourier 
 ARIMA_scores <- accuracy(ARIMA_Four_for$mean,ts_daily_test)
+ARIMA_scores
 ```
 
 ```{r}
-# adding results from ETS_fit to submission template
-submission_ETS <- read_csv("output/submission_template.csv", 
+# adding results from ETS_fit2 to submission template (month holdout)
+submission_arima1 <- read_csv("output/submission_template.csv", 
     col_types = cols(load = col_number()))
-
-submission_ETS$load <- ETS_fit$fitted[2312:2342]
-
+submission_arima1$load <- ARIMA_Four_for$fitted[1977:2007]
 
 #creating .csv output
-write.csv(submission_ETS,file=here("output","Submission1_EK_JW.csv"))
+write.csv(submission_arima1,file=here("output","Submission6_EK_JW.csv"),
+          row.names = F)
 ```
 
+###  TBATS
+
+```{r TBATS, echo=TRUE, message=FALSE, warning=FALSE}
+# TBATS can take time to fit
+TBATS_fit <- tbats(ts_act_power_daily_train) #exponential smoothing under state space, fit
+
+TBATS_for <- forecast(TBATS_fit, h=365) #forecast
+
+#Plot foresting results
+autoplot(TBATS_for) +
+  ylab("Active Power") 
+
+#Plot model + observed data
+autoplot(ts_act_power_daily) +
+  autolayer(TBATS_for, series="TBATS",PI=FALSE)+
+  ylab("Active Power") 
+
+```
 
