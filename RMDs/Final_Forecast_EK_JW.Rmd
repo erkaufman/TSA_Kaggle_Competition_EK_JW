@@ -98,7 +98,6 @@ rh_daily <- relative_humidity_all %>%
 
 ```{r}
 #save datasets
-
 write.csv(load_daily,file=here("Data","Processed","Daily_Load.csv"))
 write.csv(temp_daily,file=here("Data","Processed","Daily_Temp.csv"))
 write.csv(rh_daily,file=here("Data","Processed","Daily_Relative_Humidity.csv"))
@@ -222,9 +221,7 @@ ARIMA_Four_fit <- auto.arima(ts_daily_train,
 ARIMA_Four_for <- forecast(ARIMA_Four_fit,
                            xreg=fourier(ts_daily_train,
                                         K=c(2,4),
-                                        h=365), h=365
-                           ) 
-
+                                        h=365), h=365) 
 #Plot foresting results
 autoplot(ARIMA_Four_for) + ylab("Load") + ggtitle("ARIMA w Fourier (2,4)")
 
@@ -232,7 +229,6 @@ autoplot(ARIMA_Four_for) + ylab("Load") + ggtitle("ARIMA w Fourier (2,4)")
 autoplot(ts_load_daily) +
   autolayer(ARIMA_Four_for, series="ARIMA_FOURIER",PI=FALSE) +
   ylab("Load")
-
 
 ```
 
@@ -243,7 +239,7 @@ ARIMA_scores
 ```
 
 ```{r}
-# adding results from ETS_fit2 to submission template (month holdout)
+# adding results from arima1 to submission template (month holdout)
 submission_arima1 <- read_csv("output/submission_template.csv", 
     col_types = cols(load = col_number()))
 submission_arima1$load <- ARIMA_Four_for$fitted[1977:2007]
@@ -253,22 +249,80 @@ write.csv(submission_arima1,file=here("output","Submission6_EK_JW.csv"),
           row.names = F)
 ```
 
-###  TBATS
+###  ARIMA w (2,4) Fourier and Exogenous variables 
 
-```{r TBATS, echo=TRUE, message=FALSE, warning=FALSE}
-# TBATS can take time to fit
-TBATS_fit <- tbats(ts_act_power_daily_train) #exponential smoothing under state space, fit
+```{r exogenous variables , echo=TRUE, message=FALSE, warning=FALSE}
+# load exogenous variables
+raw_temp <- read.csv(here('Data','Processed','Daily_Temp.csv'))
+raw_temp <- raw_temp %>% 
+  drop_na()
 
-TBATS_for <- forecast(TBATS_fit, h=365) #forecast
+raw_humidity <- read.csv(here('Data','Processed','Daily_Relative_Humidity.csv'))
 
+avg_temp <- raw_temp %>% 
+  mutate(avgTemp = rowMeans(select(., 6:33)))
+```
+
+```{r exogenous variables test and train, avg temperature}
+#ts object of exogenous variables 
+ts_avgtemp <- msts(avg_temp$avgTemp, 
+                  start=c(2005,1,1),
+                  seasonal.periods =c(7,365.25))
+
+#External regressors test and train
+temp_avg_monthly_train <- subset(ts_avgtemp,
+                                   end = length(ts_load_daily)-30)
+
+temp_avg_monthly_test <- subset(ts_avgtemp,
+                                   start = length(ts_load_daily)-30)
+
+temp_avg_for <- forecast(ts_avgtemp, h=31)
+```
+
+```{r}
+# Generate Fourier series components
+fourier_components <- fourier(ts_daily_train_month, K=c(2,4))
+fourier_for <- fourier(ts_daily_train_month, K=c(2,4), h=31)
+
+# Combine Fourier components with temperature data
+regressors <- cbind(as.matrix(data.frame(fourier_components)), 
+                    "temp" = temp_avg_monthly_train)
+
+regressors_for <- cbind(as.matrix(data.frame(fourier_for)), 
+                    "temp" = temp_avg_monthly_test)
+
+ARIMA_Four_fit_temp <- auto.arima(ts_daily_train_month, 
+                             seasonal=FALSE, 
+                             lambda=0,
+                             xreg=regressors)
+
+#Forecast with ARIMA fit
+#also need to specify h for fourier terms
+ARIMA_Four_for_temp <- forecast(ARIMA_Four_fit_temp,
+                           xreg=regressors_for) 
 #Plot foresting results
-autoplot(TBATS_for) +
-  ylab("Active Power") 
+autoplot(ARIMA_Four_for_temp) + ylab("Load") + ggtitle("ARIMA w Fourier (2,4) and avg temp")
 
 #Plot model + observed data
-autoplot(ts_act_power_daily) +
-  autolayer(TBATS_for, series="TBATS",PI=FALSE)+
-  ylab("Active Power") 
+autoplot(ts_load_daily) +
+  autolayer(ARIMA_Four_for, series="ARIMA_FOURIER_Temp",PI=FALSE) +
+  ylab("Load")
 
 ```
 
+```{r}
+#Model 2: ARIMA + Fourier 
+ARIMA_temp_scores <- accuracy(ARIMA_Four_for_temp$mean,ts_daily_test_month)
+ARIMA_temp_scores
+```
+
+```{r}
+# adding results from ARIMA_Four_for_temp to submission template (month holdout)
+submission_arima2 <- read_csv("output/submission_template.csv", 
+    col_types = cols(load = col_number()))
+submission_arima2$load <- ARIMA_Four_for_temp$fitted[1977:2007]
+
+#creating .csv output
+write.csv(submission_arima2,file=here("output","Submission7_EK_JW.csv"),
+          row.names = F)
+```
