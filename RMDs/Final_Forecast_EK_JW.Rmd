@@ -305,7 +305,7 @@ autoplot(ARIMA_Four_for_temp) + ylab("Load") + ggtitle("ARIMA w Fourier (2,4) an
 
 #Plot model + observed data
 autoplot(ts_load_daily) +
-  autolayer(ARIMA_Four_for, series="ARIMA_FOURIER_Temp",PI=FALSE) +
+  autolayer(ARIMA_Four_for_temp, series="ARIMA_FOURIER_Temp",PI=FALSE) +
   ylab("Load")
 
 ```
