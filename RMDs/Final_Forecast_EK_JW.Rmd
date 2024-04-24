@@ -326,3 +326,6 @@ submission_arima2$load <- ARIMA_Four_for_temp$fitted[1977:2007]
 write.csv(submission_arima2,file=here("output","Submission7_EK_JW.csv"),
           row.names = F)
 ```
+
+other ideas:
+- average for monthly values to reduce run time, use humidity, average results from best performing models to make an 'ensemble method'
