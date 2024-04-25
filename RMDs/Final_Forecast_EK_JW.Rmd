@@ -327,5 +327,28 @@ write.csv(submission_arima2,file=here("output","Submission7_EK_JW.csv"),
           row.names = F)
 ```
 
+### Ensemble approach of averaging best performing model results with June Load data
+
+```{r}
+#load submission 2
+Best_performing_model <- read_csv("output/Submission2_EK_JW.csv")
+
+Best_performing_model$june_data<- load_daily$Daily_mean_load[2342:2372]
+
+EnsembleAvg <- Best_performing_model %>% 
+  mutate(Ensemble =rowMeans(select(.,2:3)))
+
+submission_ensemble_1 <- read_csv("output/submission_template.csv", 
+    col_types = cols(load = col_number()))
+
+submission_ensemble_1$load <- EnsembleAvg$Ensemble
+
+#creating .csv output
+write.csv(submission_ensemble_1,file=here("output","Submission8_EK_JW.csv"),
+          row.names = F)
+
+```
+
+
 other ideas:
 - average for monthly values to reduce run time, use humidity, average results from best performing models to make an 'ensemble method'
